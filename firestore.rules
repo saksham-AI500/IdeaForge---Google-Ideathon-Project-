@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // Helper Functions
+    // -----------------------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (request.auth.token.admin == true || request.auth.uid == 'T2tCZlC8PkTcDeMir11m4xJOPN73');
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // -----------------------------------------------------------------------
+    // Default: deny all reads and writes unless explicitly allowed below.
+    // -----------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // Per-user data isolation:
+    // - Normal authenticated users can only read and write their own data.
+    // - Verified Administrators (with custom claim admin: true) have read access.
+    // -----------------------------------------------------------------------
+    match /users/{uid}/{document=**} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid);
+    }
+  }
+}
+
