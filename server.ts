@@ -11,7 +11,7 @@ const { callGemini, GeminiError } = require('./backend/src/services/geminiHelper
 const { searchTavily, TavilyError } = require('./backend/src/services/tavilyService');
 const { IDEAFORGE_SYSTEM_INSTRUCTION } = require('./backend/src/services/systemPrompt');
 
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 async function startServer() {
   const app = express();
