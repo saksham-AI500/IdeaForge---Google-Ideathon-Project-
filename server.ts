@@ -7,9 +7,9 @@ import { createServer as createViteServer } from 'vite';
 const require = createRequire(import.meta.url);
 
 // Import backend services (using Node CJS require since backend services are in backend/src/services)
-const { callGemini, GeminiError } = require('./backend/src/services/geminiHelper');
-const { searchTavily, TavilyError } = require('./backend/src/services/tavilyService');
-const { IDEAFORGE_SYSTEM_INSTRUCTION } = require('./backend/src/services/systemPrompt');
+const { callGemini, GeminiError } = require(path.join(process.cwd(), 'backend/src/services/geminiHelper'));
+const { searchTavily, TavilyError } = require(path.join(process.cwd(), 'backend/src/services/tavilyService'));
+const { IDEAFORGE_SYSTEM_INSTRUCTION } = require(path.join(process.cwd(), 'backend/src/services/systemPrompt'));
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
