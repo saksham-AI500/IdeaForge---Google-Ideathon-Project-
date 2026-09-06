@@ -25,7 +25,7 @@
 //   message and an HTTP status code.
 // ---------------------------------------------------------------------------
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 // ---------------------------------------------------------------------------
 // Configuration — all from environment variables
@@ -51,8 +51,8 @@ function resolveActiveModel(envValue, fallbackDefault) {
   return envValue;
 }
 
-const PRIMARY_MODEL = resolveActiveModel(process.env.GEMINI_PRIMARY_MODEL, 'gemini-3.7-flash');
-const FALLBACK_MODEL = resolveActiveModel(process.env.GEMINI_FALLBACK_MODEL, 'gemini-3.6-flash');
+const PRIMARY_MODEL = resolveActiveModel(process.env.GEMINI_PRIMARY_MODEL, 'gemini-3.8-flash');
+const FALLBACK_MODEL = resolveActiveModel(process.env.GEMINI_FALLBACK_MODEL, 'gemini-3.1-pro-preview');
 const rawPrimaryTimeout = parseInt(process.env.GEMINI_PRIMARY_TIMEOUT_MS, 10);
 const PRIMARY_TIMEOUT_MS = (!isNaN(rawPrimaryTimeout) && rawPrimaryTimeout >= 10000) ? rawPrimaryTimeout : 20000;
 const rawFallbackTimeout = parseInt(process.env.GEMINI_FALLBACK_TIMEOUT_MS, 10);
@@ -71,7 +71,7 @@ function getGenAI() {
         false, // not recoverable — config issue
       );
     }
-    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   }
   return genAI;
 }
@@ -149,22 +149,26 @@ function withTimeout(promise, timeoutMs, modelName) {
 async function callModel(modelName, timeoutMs, { prompt, systemInstruction, history }) {
   const ai = getGenAI();
 
-  const modelConfig = {};
+  const config = {};
   if (systemInstruction) {
-    modelConfig.systemInstruction = systemInstruction;
+    config.systemInstruction = systemInstruction;
   }
 
-  const model = ai.getGenerativeModel({ model: modelName, ...modelConfig });
-
   const executeCall = async () => {
-    let result;
+    let contents;
     if (history && history.length > 0) {
-      const chat = model.startChat({ history });
-      result = await chat.sendMessage(prompt);
+      contents = [...history, { role: 'user', parts: [{ text: prompt }] }];
     } else {
-      result = await model.generateContent(prompt);
+      contents = prompt;
     }
-    const text = result.response?.text?.();
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents,
+      config: Object.keys(config).length > 0 ? config : undefined,
+    });
+
+    const text = response.text;
     if (!text) {
       throw new GeminiError(
         'Gemini returned an empty response. The model may have filtered the output.',

@@ -94,11 +94,12 @@ async function startServer() {
     }
 
     // Test Firebase Client Config
+    const fbProjectId = process.env.FIREBASE_PROJECT_ID || 'ideaforge-a62ba';
     results.services.firebase = {
       status: 'healthy',
-      projectId: process.env.FIREBASE_PROJECT_ID || 'saksham-genai-academy-track-3',
-      authDomain: 'saksham-genai-academy-track-3.firebaseapp.com',
-      authProviders: ['Email/Password', 'Google Sign-In', '1-Click Instant Demo'],
+      projectId: fbProjectId,
+      authDomain: `${fbProjectId}.firebaseapp.com`,
+      authProviders: ['Email/Password', 'Google Sign-In'],
       message: 'Firebase Client Auth & Firestore isolated rules active',
     };
 
@@ -364,7 +365,7 @@ Analyze these search results and return ONLY a valid JSON object:
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
+    app.get('*all', (_req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

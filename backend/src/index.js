@@ -38,12 +38,12 @@ if (serviceAccountPath) {
 if (serviceAccountKey) {
   initializeApp({
     credential: cert(serviceAccountKey),
-    projectId: process.env.FIREBASE_PROJECT_ID,
+    projectId: process.env.FIREBASE_PROJECT_ID || 'ideaforge-a62ba',
   });
 } else {
   // Default credentials (Cloud Run / gcloud ADC)
   initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
+    projectId: process.env.FIREBASE_PROJECT_ID || 'ideaforge-a62ba',
   });
 }
 
@@ -142,7 +142,7 @@ app.get('/api/me', (req, res) => {
 });
 
 // 404 handler for undefined API routes
-app.use('/api/*', (req, res) => {
+app.use('/api/*all', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
 });
 

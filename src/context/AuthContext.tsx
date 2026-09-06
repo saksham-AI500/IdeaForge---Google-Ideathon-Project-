@@ -5,6 +5,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   fbSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -37,6 +39,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const clearError = () => setAuthError(null);
 
   useEffect(() => {
+    // 1. Process pending redirect authentication result (e.g. from signInWithRedirect)
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          setUser(result.user);
+          try {
+            const idTokenResult = await result.user.getIdTokenResult();
+            setIsAdmin(Boolean(idTokenResult.claims.admin));
+          } catch {
+            setIsAdmin(false);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Firebase redirect sign-in error:', err);
+        const friendlyMsg = mapFirebaseAuthError(err);
+        setAuthError(friendlyMsg);
+      });
+
+    // 2. Listen to ongoing authentication state changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -58,60 +80,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signIn = async (email: string, pass: string) => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPass = pass || 'IdeaForge2026!';
-
-    // Special handling for the founder demo account: guarantee 100% login success
-    if (cleanEmail === 'founder@ideaforge.ai') {
-      try {
-        await signInWithEmailAndPassword(auth, 'founder@ideaforge.ai', 'IdeaForge2026!');
-        return;
-      } catch (founderErr) {
-        // If founder user doesn't exist, create it on the fly
-        try {
-          const cred = await createUserWithEmailAndPassword(auth, 'founder@ideaforge.ai', 'IdeaForge2026!');
-          if (cred.user) {
-            await updateProfile(cred.user, { displayName: 'IdeaForge Founder' });
-          }
-          return;
-        } catch {
-          // continue to standard flow
-        }
-      }
+    if (!cleanEmail || !pass) {
+      const msg = 'Please enter both your email address and password.';
+      setAuthError(msg);
+      throw new Error(msg);
     }
 
     try {
-      await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
+      await signInWithEmailAndPassword(auth, cleanEmail, pass);
     } catch (err: any) {
-      const code = (err.code || '').toLowerCase();
-
-      // If sign in fails because user is not found or credential invalid,
-      // allow first-time users to be created seamlessly without error
-      if (
-        (code === 'auth/invalid-credential' ||
-          code === 'auth/invalid-login-credentials' ||
-          code === 'auth/user-not-found') &&
-        cleanPass.length >= 6
-      ) {
-        try {
-          const cred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
-          if (cred.user) {
-            const fallbackName = cleanEmail.split('@')[0];
-            await updateProfile(cred.user, {
-              displayName: fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1),
-            });
-          }
-          return;
-        } catch (createErr: any) {
-          const createCode = (createErr.code || '').toLowerCase();
-          if (createCode === 'auth/email-already-in-use') {
-            const msg =
-              'Incorrect password for this account. Please verify your password, click "Forgot password?" to reset it, or use the 1-Click Demo.';
-            setAuthError(msg);
-            throw new Error(msg);
-          }
-        }
-      }
-
       const friendlyMsg = mapFirebaseAuthError(err);
       setAuthError(friendlyMsg);
       throw new Error(friendlyMsg);
@@ -121,35 +98,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signUp = async (email: string, pass: string, name?: string) => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPass = pass || 'IdeaForge2026!';
-
-    // If user enters the founder demo email on signup, seamlessly sign them in
-    if (cleanEmail === 'founder@ideaforge.ai') {
-      await signIn('founder@ideaforge.ai', 'IdeaForge2026!');
-      return;
+    if (!cleanEmail || !pass) {
+      const msg = 'Please enter both your email address and password.';
+      setAuthError(msg);
+      throw new Error(msg);
     }
 
     try {
-      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPass);
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
       if (name && cred.user) {
         await updateProfile(cred.user, { displayName: name.trim() });
       }
     } catch (err: any) {
-      const code = (err.code || '').toLowerCase();
-
-      // If user already exists, try signing them in with the provided password!
-      if (code === 'auth/email-already-in-use') {
-        try {
-          await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
-          return;
-        } catch {
-          const msg =
-            'An account with this email already exists. Switch to "Sign In" above to enter your password, or use 1-Click Demo.';
-          setAuthError(msg);
-          throw new Error(msg);
-        }
-      }
-
       const friendlyMsg = mapFirebaseAuthError(err);
       setAuthError(friendlyMsg);
       throw new Error(friendlyMsg);
@@ -159,20 +119,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signInWithGoogle = async () => {
     setAuthError(null);
     try {
+      // 1. Attempt standard Google popup sign-in
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       const code = (err.code || '').toLowerCase();
-      const message = (err.message || '').toLowerCase();
 
-      let friendlyMsg = mapFirebaseAuthError(err);
-      if (
-        code === 'auth/unauthorized-domain' ||
-        code.includes('unauthorized-domain') ||
-        message.includes('unauthorized domain')
-      ) {
-        friendlyMsg =
-          'Google popup sign-in is restricted on this Cloud Run preview domain. Please use Email/Password or 1-Click Demo Sign-In below.';
+      // Detect popup-related and unsupported flow errors
+      const isPopupIssue =
+        code === 'auth/popup-blocked' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/operation-not-supported-in-this-environment';
+
+      if (isPopupIssue) {
+        // Gracefully fall back to redirect sign-in
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: any) {
+          const friendlyMsg = mapFirebaseAuthError(redirectErr);
+          setAuthError(friendlyMsg);
+          throw new Error(friendlyMsg);
+        }
       }
+
+      // Do NOT blindly fallback on configuration, domain, or credential errors
+      const friendlyMsg = mapFirebaseAuthError(err);
       setAuthError(friendlyMsg);
       throw new Error(friendlyMsg);
     }

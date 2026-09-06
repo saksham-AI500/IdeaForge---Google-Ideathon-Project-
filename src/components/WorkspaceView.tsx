@@ -1239,7 +1239,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ onBackToHome }) =>
                     </div>
 
                     <div className="p-2.5 rounded-lg bg-[#090d16] text-[11px] text-slate-300 font-mono border border-white/5">
-                      Providers: Email/Password + Google Sign-In + 1-Click Founder Demo
+                      Providers: Email/Password + Google Sign-In (Popup & Redirect)
                     </div>
                   </div>
 

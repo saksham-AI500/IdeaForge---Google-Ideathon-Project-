@@ -8,7 +8,7 @@ interface VersionStep {
   title: string;
   stageBadge: string;
   coreIdea: string;
-  triggerType: 'challenge' | 'evidence' | 'initial';
+  triggerType: 'challenge' | 'evolve' | 'initial';
   triggerText: string;
   whatChanged: string;
   whyChanged: string;
@@ -23,49 +23,49 @@ const evolutionHistory: VersionStep[] = [
   {
     id: 'v1',
     version: 'V1',
-    title: 'Automated Meeting Intelligence',
+    title: 'Ephemeral AI Brainstorming Chat',
     stageBadge: 'Raw Spark',
-    coreIdea: 'An AI assistant that records meetings, provides full live audio transcription, and extracts action items into a task list.',
+    coreIdea: 'A standard AI conversational chat where founders type raw startup thoughts, brainstorm with an LLM, and take disposable scratchpad notes.',
     triggerType: 'initial',
-    triggerText: 'Initial hypothesis entered by user.',
-    whatChanged: 'Baseline concept capture.',
-    whyChanged: 'Starting point for idea development.',
-    riskAvoided: 'None yet — unchallenged concept.',
+    triggerText: 'Initial raw idea captured into private user Firestore workspace (users/{uid}/ideas/).',
+    whatChanged: 'Baseline concept capture with user authentication and Firestore tenant isolation.',
+    whyChanged: 'Starting point for idea development before applying structured inquiry or critical pushback.',
+    riskAvoided: 'Losing a fleeting spark before it can be examined and strengthened.',
     groundedQueryDemo: {
       question: 'What was our original premise in V1?',
-      groundedAnswer: 'In V1, you conceived IdeaForge as a live meeting recording and transcription tool focusing purely on task extraction.',
+      groundedAnswer: 'In V1, you captured an unstructured chat scratchpad where brainstorms were treated as disposable notes without version tracking or assumption pushback.',
     },
   },
   {
     id: 'v2',
     version: 'V2',
-    title: 'Decision Rationale Tracker',
-    stageBadge: 'Challenge Pivot',
-    coreIdea: 'A workspace that tracks the strategic "why" behind engineering decisions during brainstorms, rather than disposable verbatim transcripts.',
+    title: 'Dialectic Assumption Stress-Testing',
+    stageBadge: 'Clarify & Challenge',
+    coreIdea: 'A guided workspace where Gemini asks 2–3 sharp clarifying questions on users and goals, then isolates the single weakest assumption and aggressively pushes back.',
     triggerType: 'challenge',
-    triggerText: 'Gemini Challenge: "Weak assumption: Teams do not need another 50-page transcript nobody reads. The catastrophic failure in software projects is nobody remembering why an architecture was chosen 6 months later."',
-    whatChanged: 'Stripped out real-time audio transcription; refocused core workflow on capturing high-leverage decision trees and assumption challenges.',
-    whyChanged: 'Transcripts are low-signal noise; preserved reasoning prevents redundant debates and architectural drift.',
-    riskAvoided: 'Building a commoditized recording tool that users abandon after meeting fatigue.',
+    triggerText: 'Gemini Challenge: "Weak assumption: Founders do not fail from a lack of brainstorming notes. They fail because conversational chatbots unconditionally flatter unviable ideas. Why will your customers pay if you haven\'t validated whether the core problem actually hurts?"',
+    whatChanged: 'Integrated Gemini Clarify (multi-turn problem/users/goal diagnostic) and Gemini Challenge (direct pushback on unexamined assumptions before revision).',
+    whyChanged: 'Standard conversational AI creates false validation; founders need constructive skepticism that uncovers blind spots before committing code or capital.',
+    riskAvoided: 'Building on unexamined assumptions and mistaking AI conversational agreement for real product-market validation.',
     groundedQueryDemo: {
-      question: 'Why did we drop audio recording between V1 and V2?',
-      groundedAnswer: 'Gemini challenged the assumption that verbatim transcripts retain signal. You pivoted from recording words to preserving the structured rationale behind architectural pivots.',
+      question: 'Why did we pivot from a simple scratchpad in V1 to dialectic validation in V2?',
+      groundedAnswer: 'Gemini challenged the assumption that founders need more agreeable chat output. You pivoted to active pushback — testing whether users will actually pay before revising the thesis.',
     },
   },
   {
     id: 'v3',
     version: 'V3',
-    title: 'IdeaForge — Evolutionary Knowledge Core',
-    stageBadge: 'Grounded Reality',
-    coreIdea: 'An AI-guided evolutionary workspace with version immutability, continuous web verification, and natural-language grounded retrospective Q&A.',
-    triggerType: 'evidence',
-    triggerText: 'Tavily Market Verification: "Developer surveys reveal 78% of architectural rework stems from lost rationale in disposable chat sessions, not lack of initial code generation."',
-    whatChanged: 'Integrated real-time evidence loops (Tavily search verification) and an immutable parent-child version chain with "Ask My Idea" grounded retrospectives.',
-    whyChanged: 'External validation proved that linking evidence directly to version diffs turns ephemeral chat into permanent institutional memory.',
-    riskAvoided: 'Creating an echo chamber where ungrounded AI assumptions go unverified by real-world market signals.',
+    title: 'IdeaForge — Idea Evolution Engine & Grounded Memory',
+    stageBadge: 'Evolution Engine',
+    coreIdea: 'A private AI workspace that automatically computes version diffs (whatChanged & whyChanged), locks immutable milestones in Firestore, and answers retrospective questions via "Ask My Idea" grounded Q&A.',
+    triggerType: 'evolve',
+    triggerText: 'Evolution Engine Trigger: "Meaningful pivot detected between iterations. Gemini synthesized strategic whatChanged/whyChanged rationale and committed Version 3 to the immutable Firestore timeline."',
+    whatChanged: 'Activated the Idea Evolution Engine with automated whatChanged and whyChanged synthesis, immutable version history under users/{uid}/ideas/{ideaId}/versions/, and "Ask My Idea" grounded Q&A.',
+    whyChanged: 'Conversations are ephemeral, but reasoning must be permanent. Preserving why decisions were made protects founders from circular pivots and forgotten insights.',
+    riskAvoided: 'Context amnesia — repeating discarded architectural experiments or forgetting why a critical pivot occurred 6 months later.',
     groundedQueryDemo: {
-      question: 'How did Tavily evidence shape V3?',
-      groundedAnswer: 'Tavily retrieved market research showing 78% of rework is caused by forgotten "why" context. This confirmed your pivot and led to adding automated external evidence retrieval to each revision.',
+      question: 'Why did we build the Idea Evolution Engine in V3?',
+      groundedAnswer: 'You realized that the true competitive differentiator isn\'t generating ideas, but preserving the evolutionary history — remembering why the idea changed so founders never lose strategic context.',
     },
   },
 ];
@@ -93,8 +93,8 @@ export const EvolutionSection: React.FC = () => {
 
         <ScrollReveal delay={240} distance={20}>
           <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
-            Watch a raw spark transform through rigorous sparring, live evidence, and reasoned
-            pivots — captured permanently in memory.
+            Watch a raw spark transform through Gemini Clarify, assumption Challenge, and reasoned
+            pivots — captured permanently by the Idea Evolution Engine.
           </p>
         </ScrollReveal>
       </div>
@@ -178,7 +178,9 @@ export const EvolutionSection: React.FC = () => {
                     <ShieldAlert className="w-4 h-4 text-amber-400" />
                     <span>
                       Catalyst:{' '}
-                      {activeVersion.triggerType === 'challenge' ? 'Gemini Challenge' : 'Tavily Market Evidence'}
+                      {activeVersion.triggerType === 'challenge'
+                        ? 'Gemini Challenge Pushback'
+                        : 'Idea Evolution Engine Catalyst'}
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">

@@ -4,6 +4,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut as fbSignOut,
   onAuthStateChanged,
@@ -17,11 +19,12 @@ import {
  * Firebase Client Configuration
  * Prioritizes environment variables; provides safe default project fallback.
  */
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'ideaforge-a62ba';
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCXGqh_22NLJEpTsETBYztK5Wq65Ag7XgA',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'saksham-genai-academy-track-3.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'saksham-genai-academy-track-3',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'saksham-genai-academy-track-3.firebasestorage.app',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+  projectId: projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '121971590014',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:121971590014:web:35a8ef3df2b5c4ad6d292f',
 };
@@ -65,14 +68,14 @@ export function mapFirebaseAuthError(error: any): string {
     case 'auth/user-disabled':
       return 'This account has been disabled. Please contact IdeaForge support.';
     case 'auth/user-not-found':
-      return 'No account found with this email. Switch to "Create Account" above to register, or use 1-Click Demo.';
+      return 'No account found with this email. Switch to "Create Account" above to register.';
     case 'auth/wrong-password':
-      return 'Incorrect password. Please verify your credentials, reset your password, or use 1-Click Demo.';
+      return 'Incorrect password. Please verify your credentials or reset your password.';
     case 'auth/invalid-credential':
     case 'auth/invalid-login-credentials':
-      return 'Incorrect email or password. If you do not have an account yet, switch to "Create Account", or use 1-Click Demo.';
+      return 'Incorrect email or password. Please verify your credentials or switch to "Create Account".';
     case 'auth/email-already-in-use':
-      return 'An account with this email already exists. Try signing in with your password, or use 1-Click Demo.';
+      return 'An account with this email already exists. Try signing in with your password.';
     case 'auth/credential-already-in-use':
       return 'This credential is already linked to an existing account.';
     case 'auth/account-exists-with-different-credential':
@@ -82,29 +85,32 @@ export function mapFirebaseAuthError(error: any): string {
     case 'auth/popup-closed-by-user':
       return 'Google sign-in was canceled before completing.';
     case 'auth/popup-blocked':
-      return 'The Google sign-in popup was blocked by your browser or iframe security. Please allow popups or use Email/1-Click Demo below.';
-    case 'auth/unauthorized-domain':
-      return 'Google popup sign-in is restricted on this Cloud Run preview domain. Please use Email/Password or 1-Click Demo Sign-In below.';
+      return 'Your browser blocked the sign-in window. Continuing with secure redirect sign-in...';
+    case 'auth/unauthorized-domain': {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      return `Domain unauthorized: "${currentHost}" is not in Firebase Authorized Domains. Add this domain in Firebase Console (Authentication > Settings > Authorized domains). On localhost, Google Sign-In is already authorized.`;
+    }
     case 'auth/cancelled-popup-request':
       return 'Sign-in attempt was interrupted. Please retry.';
     case 'auth/network-request-failed':
       return 'Network connection issue. Please check your internet connection and retry.';
     case 'auth/too-many-requests':
-      return 'Too many attempts. For security, please wait a moment or use 1-Click Demo.';
+      return 'Too many attempts. For security, please wait a moment before retrying.';
     case 'auth/operation-not-allowed':
-      return 'This authentication method is currently not enabled in Firebase configuration.';
+      return 'Google Sign-In is currently unavailable. Please use email and password.';
     case 'auth/requires-recent-login':
       return 'Please sign in again before updating sensitive account settings.';
     case 'auth/internal-error':
-      return 'Authentication service encountered a transient issue. Please retry or use 1-Click Demo.';
+      return 'Authentication service encountered a transient issue. Please retry.';
     default:
       if (code.includes('unauthorized-domain') || message.includes('unauthorized domain')) {
-        return 'Google popup sign-in is restricted on this Cloud Run preview domain. Please use Email/Password or 1-Click Demo Sign-In below.';
+        const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        return `Domain unauthorized: "${currentHost}" is not in Firebase Authorized Domains. Add this domain in Firebase Console (Authentication > Settings > Authorized domains). On localhost, Google Sign-In is already authorized.`;
       }
       if (code.includes('api-key') || message.includes('api-key') || message.includes('api key')) {
-        return 'Firebase API key configuration issue. Reconnecting to project...';
+        return 'Firebase API key configuration issue. Please verify project credentials.';
       }
-      return 'Unable to authenticate. Please check your credentials or click "1-Click Instant Demo" below to enter immediately.';
+      return 'Unable to authenticate. Please check your credentials and try again.';
   }
 }
 
@@ -115,6 +121,8 @@ export {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   fbSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
