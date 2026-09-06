@@ -3,6 +3,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { callGemini, GeminiError } = require('../services/geminiHelper');
 const { validateTextInput } = require('../middleware/validateInput');
 const { IDEAFORGE_SYSTEM_INSTRUCTION } = require('../services/systemPrompt');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 const db = getFirestore();
@@ -459,6 +460,24 @@ Return ONLY raw JSON, no markdown, no code blocks.`;
         timestamp: FieldValue.serverTimestamp(),
         messageType: 'challenge',
       });
+
+      await logActivity({
+        uid,
+        ideaId,
+        eventType: 'challenge_generated',
+        summary: `Challenged assumption: "${(structuredResult.assumption || '').slice(0, 60)}..."`,
+        metadata: { riskLevel: structuredResult.riskLevel },
+      });
+
+      if (structuredResult.riskLevel === 'RISKY' || structuredResult.riskLevel === 'HIGHLY_QUESTIONABLE') {
+        await logActivity({
+          uid,
+          ideaId,
+          eventType: 'risk_identified',
+          summary: `Identified ${structuredResult.riskLevel} risk: "${(structuredResult.whyItMatters || '').slice(0, 60)}..."`,
+          metadata: { riskLevel: structuredResult.riskLevel },
+        });
+      }
 
       return res.json({
         text: structuredResult.critique,

@@ -31,10 +31,32 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Configuration — all from environment variables
 // ---------------------------------------------------------------------------
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const PRIMARY_MODEL = process.env.GEMINI_PRIMARY_MODEL || 'gemini-3.6-flash';
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite';
-const PRIMARY_TIMEOUT_MS = parseInt(process.env.GEMINI_PRIMARY_TIMEOUT_MS, 10) || 3500;
-const FALLBACK_TIMEOUT_MS = parseInt(process.env.GEMINI_FALLBACK_TIMEOUT_MS, 10) || 6000;
+
+// Normalize deprecated model names per Gemini API deprecation policies
+const DEPRECATED_MODELS = [
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-pro',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash-thinking',
+  'gemini-2.5-flash',
+];
+
+function resolveActiveModel(envValue, fallbackDefault) {
+  if (!envValue || DEPRECATED_MODELS.includes(envValue)) {
+    return fallbackDefault;
+  }
+  return envValue;
+}
+
+const PRIMARY_MODEL = resolveActiveModel(process.env.GEMINI_PRIMARY_MODEL, 'gemini-3.7-flash');
+const FALLBACK_MODEL = resolveActiveModel(process.env.GEMINI_FALLBACK_MODEL, 'gemini-3.6-flash');
+const rawPrimaryTimeout = parseInt(process.env.GEMINI_PRIMARY_TIMEOUT_MS, 10);
+const PRIMARY_TIMEOUT_MS = (!isNaN(rawPrimaryTimeout) && rawPrimaryTimeout >= 10000) ? rawPrimaryTimeout : 20000;
+const rawFallbackTimeout = parseInt(process.env.GEMINI_FALLBACK_TIMEOUT_MS, 10);
+const FALLBACK_TIMEOUT_MS = (!isNaN(rawFallbackTimeout) && rawFallbackTimeout >= 15000) ? rawFallbackTimeout : 25000;
 
 // Lazy-initialized — created on first call so the module can be required
 // before env vars are loaded (e.g. during test setup).
@@ -75,6 +97,12 @@ class GeminiError extends Error {
 // Classify whether an error is recoverable (should trigger fallback)
 // ---------------------------------------------------------------------------
 function isRecoverableError(err) {
+  // Check if error message is a model availability or deprecation issue -> recoverable via fallback
+  const msg = (err?.message || '').toLowerCase();
+  if (msg.includes('no longer available') || msg.includes('models/')) {
+    return true;
+  }
+
   // Explicit non-recoverable: bad request, auth, permission
   const nonRecoverableStatuses = [400, 401, 403, 404];
   const status = err?.status || err?.statusCode || err?.code;
@@ -90,7 +118,6 @@ function isRecoverableError(err) {
   }
 
   // Check the error message for known non-recoverable patterns
-  const msg = (err?.message || '').toLowerCase();
   if (msg.includes('api key') || msg.includes('invalid api') || msg.includes('permission')) {
     return false;
   }

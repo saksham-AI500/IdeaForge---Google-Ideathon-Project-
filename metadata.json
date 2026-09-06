@@ -1,0 +1,8 @@
+{
+  "name": "IdeaForge",
+  "description": "An AI-powered idea evolution workspace landing page and interactive journey.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -48,67 +48,120 @@ if (serviceAccountKey) {
 }
 
 // ---------------------------------------------------------------------------
-// Express app
+// Express app setup
 // ---------------------------------------------------------------------------
 const app = express();
+
+// Trust proxy for Cloud Run and container ingress routing
+app.set('trust proxy', 1);
 
 // Security: Set HTTP headers
 app.use(helmet());
 
-// Security: Strict CORS
+// Security: Dynamic origin verification
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
-  methods: ['GET', 'POST', 'OPTIONS'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.length === 0) {
+      // Default to allowing local development and cloud run subdomains
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+
+    // Allow localhost/127.0.0.1 in non-production
+    if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS not allowed for this origin.'));
+  },
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
 }));
-app.use(express.json());
+
+app.use(express.json({ limit: '1mb' }));
 
 // ---------------------------------------------------------------------------
 // Health check (unauthenticated — used by Cloud Run)
 // ---------------------------------------------------------------------------
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+  });
 });
 
 // ---------------------------------------------------------------------------
 // Security: Rate limiting
 // ---------------------------------------------------------------------------
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per 15 minutes
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  message: { error: 'Too many requests, please try again later.' },
 });
 app.use('/api', apiLimiter);
 
 // ---------------------------------------------------------------------------
-// API routes — all routes under /api require authentication (middleware above).
+// API routes — all routes under /api require authentication.
 // ---------------------------------------------------------------------------
 app.use('/api', authenticateRequest);
 
 const geminiRoutes = require('./routes/geminiRoutes');
 const ideaRoutes = require('./routes/ideaRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 app.use('/api', geminiRoutes);
 app.use('/api/ideas', ideaRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Authenticated user info (useful for debugging / frontend to confirm auth)
+// Authenticated user info
 app.get('/api/me', (req, res) => {
-  res.json({ uid: req.user.uid, email: req.user.email, isAdmin: Boolean(req.user.admin) });
+  res.json({
+    uid: req.user.uid,
+    email: req.user.email || null,
+    isAdmin: Boolean(req.user.admin),
+  });
+});
+
+// 404 handler for undefined API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
+// Centralized error handler
+app.use((err, req, res, next) => {
+  console.error('[ServerError]', err.message);
+  res.status(err.status || 500).json({
+    error: err.message || 'An internal server error occurred.',
+  });
 });
 
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`IdeaForge backend listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`IdeaForge backend listening on 0.0.0.0:${PORT}`);
+  });
+}
 
 module.exports = app; // for testing

@@ -74,6 +74,20 @@ function conversationPath(uid, ideaId, conversationId) {
   return `users/${uid}/ideas/${ideaId}/conversations/${conversationId}`;
 }
 
+/**
+ * Returns a Firestore collection path for an idea's activities.
+ */
+function activitiesCollection(uid, ideaId) {
+  return `users/${uid}/ideas/${ideaId}/activities`;
+}
+
+/**
+ * Returns a Firestore document path for a specific activity.
+ */
+function activityPath(uid, ideaId, activityId) {
+  return `users/${uid}/ideas/${ideaId}/activities/${activityId}`;
+}
+
 module.exports = {
   userPath,
   ideasCollection,
@@ -82,4 +96,6 @@ module.exports = {
   versionPath,
   conversationsCollection,
   conversationPath,
+  activitiesCollection,
+  activityPath,
 };
